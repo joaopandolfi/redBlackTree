@@ -1,0 +1,5 @@
+1 presente 3
+5 presente 4
+10 ausente 4
+SUA MAE TA ME OLHANDO presente 4
+BEBAAGUA!FAZBEM presente 5

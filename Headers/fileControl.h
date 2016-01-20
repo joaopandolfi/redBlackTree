@@ -1,6 +1,6 @@
 #include "arvore.h"
 
-#define FILE_TREE "tree.dat"
+#define FILE_TREE "data/tree.dat"
 
 //cria arquivo
 void createFile();

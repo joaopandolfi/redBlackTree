@@ -7,7 +7,7 @@
 
 //Estrutura da arvore
 typedef struct arvore {
-	char data[200];
+	char data[MAX_LENGHT_WORD];
 	char cor;
 	unsigned long int hash;
 	long int pai;
@@ -16,21 +16,27 @@ typedef struct arvore {
 	long int esquerda;
 } Arvore;
 
+//Estrutura para retorno da busca
+typedef struct buscaRetorno{
+	char data[MAX_LENGHT_WORD];
+	short int encontrou;
+	long int prof;
+} BuscaRetorno;
+
 // ============ CONTROLE DO NO ==========
 
 //Calcula hash
 unsigned long int hash(char* key){
   int tam, inverso;
-  int seed = 3;
   //tam = strlen(key);
   long int hash = 0;
-  inverso = 200;
+  inverso = MAX_LENGHT_WORD;
   tam = 0;
 
   while(key[tam] != '\0')
-    hash += key[tam]*(1+ tam++) + (seed*inverso--);
+    hash += key[tam]*(1+ tam++) + (HASH_SEED*inverso--);
 
-  hash = (hash*seed)+(inverso-seed);
+  hash = (hash*HASH_SEED)+(inverso-HASH_SEED);
   return hash%DIVIDER;
 }
 
@@ -49,8 +55,12 @@ Arvore* novoNo(char* data){
 
 //inicializa a arvore
 Arvore* initializeTree(){
-	createFile();
 	return NULL;
+}
+
+//Deleta arquivo atual da arvore
+void resetActualTree(){
+	createFile();
 }
 
 //seta posicao no no
@@ -62,6 +72,32 @@ Arvore* setPosition(Arvore* no, long int pos){
 //retorna o deslocamento
 long int getDesloc(Arvore* no){
 	return no->pos;
+}
+
+// =============== CONTROLE DO NO DE BUSCA================
+
+//Nova estrutura a ser retornada
+BuscaRetorno* novoRetorno(short int encontrou, int profundidade, char* data){
+	BuscaRetorno* r = (BuscaRetorno*) malloc(sizeof(BuscaRetorno));
+	r->encontrou = encontrou;
+	r->prof = profundidade;
+	strcpy_s(r->data,MAX_LENGHT_WORD,data);
+	return r;
+}
+
+//verifica se o elemento foi encontrado
+short int encontrouNaBusca(BuscaRetorno* r){
+	return r->encontrou;
+}
+
+//retorna profundidade da busca
+long int profDaBusca(BuscaRetorno* r){
+	return r->prof;
+}
+
+//Retorna o dado da busca
+char* dadoDaBusca(BuscaRetorno* r){
+	return r->data;
 }
 
 // ================= CONTROLE DA ARVORE ==================
@@ -160,27 +196,36 @@ Arvore* adicionaInternal(Arvore* raiz,Arvore* pai, Arvore* filho){
 	return raiz;
 }
 
-//Busca
-Arvore* buscaInternal(Arvore* raiz, Arvore* corrente, char data[], long int hash){
+//Busca -- MELHORAR
+char* buscaInternal(Arvore* raiz, Arvore* corrente, char data[], long int hash,int count){
+	count++;
 	if(raiz){
 		if(hash == corrente->hash){
 			if(strcmp(corrente->data, data) == 0){
-				printf("COR: %c POSICAO %d PAI: %d\n",corrente->cor,corrente->pos,corrente->pai);
-				return corrente;
-			}else if(corrente->esquerda != 0)
-				return buscaInternal(raiz,getNextNode(corrente->esquerda),data,hash);
+				//printf("COR: %c POSICAO %d PAI: %d\n",corrente->cor,corrente->pos,corrente->pai);
+				return novoRetorno(TRUE,count,corrente->data);
+			}else if(corrente->esquerda != VAZIO)
+					return buscaInternal(raiz,getNextNode(corrente->esquerda),data,hash,count);
+				else 
+				return novoRetorno(FALSE,count,data);
 		}else if(hash < corrente->hash)
-			return buscaInternal(raiz,getNextNode(corrente->esquerda),data,hash);
+			if(corrente->esquerda != VAZIO)
+				return buscaInternal(raiz,getNextNode(corrente->esquerda),data,hash,count);
+			else
+				return novoRetorno(FALSE,count,data);
 		else 
-			return buscaInternal(raiz,getNextNode(corrente->direita),data,hash);
+			if(corrente->direita != VAZIO)
+				return buscaInternal(raiz,getNextNode(corrente->direita),data,hash,count);
+			else
+				return novoRetorno(FALSE,count,data);
 	}
 	else
-		return NULL;
+		return novoRetorno(FALSE,count,data);
 }
 
 //busca na arvora por fora
-Arvore* busca(Arvore* raiz,char data[]){
-	return buscaInternal(raiz, raiz,data,hash(data));
+BuscaRetorno* busca(Arvore* raiz,char data[]){
+	return buscaInternal(raiz, raiz,data,hash(data),0);
 }
 
 //Adiciona na arvore de fora
@@ -190,8 +235,8 @@ Arvore* adiciona(Arvore* raiz, Arvore* filho){
 
 // ===================== ROTACOES ==================================
 
+//faz rotacao a esquerda na arvore
 Arvore * rotacaoEsquerda(Arvore * raiz, Arvore * avo) {
-	printf("ROTACAO ESQUERDA\n");
     Arvore * pai = getNextNode(avo->direita);
     Arvore* aux;
     avo->direita = pai->esquerda;
@@ -218,22 +263,21 @@ Arvore * rotacaoEsquerda(Arvore * raiz, Arvore * avo) {
     avo->pai = pai->pos;
     atualizaNo(pai);
     atualizaNo(avo);
-    printf("FIM ROTACAO ESQUERDA\n");
     return raiz;
 }
  
+ //Faz rotacao a direita na arvore
 Arvore * rotacaoDireita(Arvore * raiz, Arvore * atual) {
-    printf("ROTACAO DIREITA\n");
 	Arvore * esquerda = atual->esquerda;
     Arvore* aux;
     atual->esquerda = esquerda->direita;
-    if (esquerda->direita != 0) {
+    if (esquerda->direita != VAZIO) {
         aux = getNextNode(esquerda->direita);
         aux->pai = atual->pos;
         atualizaNo(aux);
     }
     esquerda->pai = atual->pai;
-    if (atual->pai == 0) {
+    if (atual->pai == RAIZ) {
         raiz = esquerda; //raiz
     } else {
         aux = getNextNode(atual->pai);
@@ -251,8 +295,6 @@ Arvore * rotacaoDireita(Arvore * raiz, Arvore * atual) {
     return raiz;
 }
 
-
-
 // ============== Manipulacao de arquivo ========================
 
 // ==== LEITURA
@@ -267,13 +309,13 @@ Arvore* getNextNode(long int desloc){
 //Atualiza dados de um no
 void atualizaNo(Arvore* no){
 	update(no);
-	printf("ALTERADO: key %d cor %c POS: %d PAI: %d ESQUERDA: %d DIREITA: %d \n",no->hash,no->cor,no->pos,no->pai,no->esquerda,no->direita);
+//	printf("ALTERADO: key %d cor %c POS: %d PAI: %d ESQUERDA: %d DIREITA: %d \n",no->hash,no->cor,no->pos,no->pai,no->esquerda,no->direita);
 }
 
 //salva filho no hd
 long int salvaFilho(Arvore* filho){
 	Arvore* novo = salvaNo(filho);
-	printf("ADICIONADO: Data: %s key %d cor %c POS: %d PAI: %d ESQUERDA: %d DIREITA: %d \n",filho->data,filho->hash,filho->cor,filho->pos,filho->pai,filho->esquerda,filho->direita);
+//	printf("ADICIONADO: Data: %s key %d cor %c POS: %d PAI: %d ESQUERDA: %d DIREITA: %d \n",filho->data,filho->hash,filho->cor,filho->pos,filho->pai,filho->esquerda,filho->direita);
 	return novo->pos;
 }
 
@@ -283,10 +325,15 @@ void salvaRaiz(Arvore* raiz){
 	raiz->pai = RAIZ;
 	//salva
 	salvaNo(raiz);
-	printf("ADICIONADO RAIZ: key %d cor %c POS: %d PAI: %d ESQUERDA: %d DIREITA: %d \n",raiz->hash,raiz->cor,raiz->pos,raiz->pai,raiz->esquerda,raiz->direita);
+//	printf("ADICIONADO RAIZ: key %d cor %c POS: %d PAI: %d ESQUERDA: %d DIREITA: %d \n",raiz->hash,raiz->cor,raiz->pos,raiz->pai,raiz->esquerda,raiz->direita);
 }
 
 //salva a raiz em um arquivo separado
 void gravaRaiz(Arvore* raiz){
+	
+}
+
+//recupera raiz do arquivo separado
+Arvore* recuperaRaiz(){
 	
 }
